@@ -3,7 +3,6 @@ package saferimg
 import (
 	"bytes"
 	"fmt"
-	"github.com/disintegration/imaging"
 	"image"
 	"image/color"
 	"io"
@@ -20,43 +19,23 @@ type Opts struct {
 	MaxMemory int
 }
 
-// Decoder decodes images using disintegration/imaging, but performs safety checks first.
-type Decoder struct {
-	opts Opts
-}
-
-func NewDecoder(opts Opts) *Decoder {
-	return &Decoder{opts: opts}
-}
-
-// Decode is a convenience method to decode using DefaultOpts (32mb memory limit).
-func Decode(r io.Reader, opts ...imaging.DecodeOption) (image.Image, error) {
-	return NewDecoder(DefaultOpts).Decode(r, opts...)
-}
-
-// Decode performs pre-flight safety checks before decoding an image from r.
-// Decoding can be aborted if the image exceeds MaxWidth, MaxHeight or MaxMemory.
-func (d *Decoder) Decode(r io.Reader, opts ...imaging.DecodeOption) (image.Image, error) {
-	config, _, r2, err := PeekConfig(r)
-	if err != nil {
-		return nil, fmt.Errorf("decoding config: %w", err)
-	}
-
+// ShouldDecode performs safety checks, returning an error if a future decode should not proceed.
+func ShouldDecode(opts Opts, config image.Config) error {
 	// Dimension checks
-	if d.opts.MaxWidth != 0 && config.Width > d.opts.MaxWidth {
-		return nil, fmt.Errorf("%w: width %d > %d", ErrExceedsMaxDimension, config.Width, d.opts.MaxWidth)
+	if opts.MaxWidth != 0 && config.Width > opts.MaxWidth {
+		return fmt.Errorf("%w: width %d > %d", ErrExceedsMaxDimension, config.Width, opts.MaxWidth)
 	}
-	if d.opts.MaxHeight != 0 && config.Height > d.opts.MaxHeight {
-		return nil, fmt.Errorf("%w: height %d > %d", ErrExceedsMaxDimension, config.Height, d.opts.MaxHeight)
+	if opts.MaxHeight != 0 && config.Height > opts.MaxHeight {
+		return fmt.Errorf("%w: height %d > %d", ErrExceedsMaxDimension, config.Height, opts.MaxHeight)
 	}
 
 	// Memory check
 	requiredBytes := EstimatedMemory(config)
-	if d.opts.MaxMemory != 0 && requiredBytes > d.opts.MaxMemory {
-		return nil, fmt.Errorf("%w: %db > %db", ErrExceedsMaxMemory, requiredBytes, d.opts.MaxMemory)
+	if opts.MaxMemory != 0 && requiredBytes > opts.MaxMemory {
+		return fmt.Errorf("%w: %db > %db", ErrExceedsMaxMemory, requiredBytes, opts.MaxMemory)
 	}
 
-	return imaging.Decode(r2, opts...)
+	return nil
 }
 
 // PeekConfig decodes and the image config from r.

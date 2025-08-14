@@ -5,6 +5,9 @@ import (
 	_ "embed"
 	"errors"
 	"image"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"testing"
 )
 
@@ -15,46 +18,53 @@ var pngbomb []byte
 var good []byte
 var goodBounds = image.Rect(0, 0, 958, 720)
 
-func TestDecode(t *testing.T) {
-	decoder := NewDecoder(Opts{
+func TestShouldDecode(t *testing.T) {
+	opts := Opts{
 		MaxWidth:  goodBounds.Dx(),
 		MaxHeight: goodBounds.Dy(),
 		MaxMemory: 4 * 1024 * 1024,
-	})
-
-	r := bytes.NewReader(good)
-	img, err := decoder.Decode(r)
-	if err != nil {
-		t.Fatalf("decoding good image: %s", err)
 	}
+	r := bytes.NewReader(good)
+	config := requirePeekConfig(t, r)
 
-	// Mainly to validate test assumptions
-	if img.Bounds() != goodBounds {
-		t.Fatalf("decoded image does not have expected bounds")
+	err := ShouldDecode(opts, config)
+	if err != nil {
+		t.Fatalf("ShouldDecode unexpectedly returned error: %v", err)
 	}
 }
 
-func TestDecode_ExceedsMaxDimension(t *testing.T) {
-	decoder := NewDecoder(Opts{
+func TestShouldDecode_ExceedsMaxDimension(t *testing.T) {
+	opts := Opts{
 		MaxWidth:  goodBounds.Dx() - 1,
 		MaxHeight: goodBounds.Dy(),
-	})
-
+		MaxMemory: 4 * 1024 * 1024,
+	}
 	r := bytes.NewReader(good)
-	_, err := decoder.Decode(r)
+	config := requirePeekConfig(t, r)
+
+	err := ShouldDecode(opts, config)
 	if !errors.Is(err, ErrExceedsMaxDimension) {
 		t.Fatalf("expected ErrExceedsMaxDimension, got %v", err)
 	}
 }
 
-func TestDecode_ExceedsMaxMemory(t *testing.T) {
-	decoder := NewDecoder(Opts{
+func TestShouldDecode_ExceedsMaxMemory(t *testing.T) {
+	opts := Opts{
 		MaxMemory: 4 * 1024 * 1024,
-	})
-
+	}
 	r := bytes.NewReader(pngbomb)
-	_, err := decoder.Decode(r)
+	config := requirePeekConfig(t, r)
+
+	err := ShouldDecode(opts, config)
 	if !errors.Is(err, ErrExceedsMaxMemory) {
 		t.Fatalf("expected ErrExceedsMaxMemory, got %v", err)
 	}
+}
+
+func requirePeekConfig(t *testing.T, r io.Reader) image.Config {
+	config, _, _, err := PeekConfig(r)
+	if err != nil {
+		t.Fatalf("peeking config: %v", err)
+	}
+	return config
 }

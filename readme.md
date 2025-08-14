@@ -1,5 +1,5 @@
 # saferimg - Golang image decoding with safety checks
-`saferimg` decodes images using disintegration/imaging, but performs optional safety checks first.
+`saferimg` provides convenience methods to perform basic safety checks for decoding images
 
 ## Why is this useful?
 Both Golang's stdlib [image.Decode](https://pkg.go.dev/image#Decode) and disintegration/imaging's
@@ -7,14 +7,14 @@ Both Golang's stdlib [image.Decode](https://pkg.go.dev/image#Decode) and disinte
 into memory, regardless of its dimensions.
 
 Decoding untrusted input, e.g. a user uploaded image, can lead to unbounded memory usage, which leaves
-services vulnerable to denial of service attacks.
+services vulnerable to denial-of-service attacks.
 
 It is not sufficient to limit the size of the uploaded data, as images can compress incredibly well.
-See the `pngbomb.png` file for an example of this: it's a 32000w x 32000h png, which will result in a
-multi-gigabyte decoded image.
+See the `asset/pngbomb.png` file for an example of this: it's a 32000w x 32000h png, which will result
+in a multi-gigabyte decoded image.
 
 ## How it works
-The image configuration is read before decoding, which provides width, height and color model. These
+The image's configuration is read before decoding, which provides width, height and color model. These
 are then compared against the `MaxWidth`, `MaxHeight`, `MaxMemory` limits set in
 [Opts](http://pkg.go.dev/github.com/iamcalledrob/saferimg#Opts).
 
@@ -24,29 +24,52 @@ Memory usage is derived from the dimensions and the BPP of the color model.
 ## Usage
 [Godoc](http://pkg.go.dev/github.com/iamcalledrob/saferimg)
 
+### DIY
+Call exported methods directly, allowing you to use any decoder and take no dependency on
+disintegration/imaging.
+
+```go
+// Get image config
+config, _, r, err := PeekConfig(r)
+if err != nil {
+    return nil
+}
+
+// Decode limits
+opts := saferimg.Opts{
+    MaxWidth: 4096,
+    MaxHeight: 4096,
+    MaxMemory: 16*1024*1024,
+}
+
+// Perform safety checks
+err = saferimg.ShouldDecode(opts, config)
+if err != nil {
+    return fmt.Errorf("should not decode image: %w", err)
+}
+
+// Decode image however you want
+img, err := image.Decode(r)
+```
+
+### Using disintegration/image convenience wrapper
 
 #### Decoding using defaults
 Applies a 32mb memory limit as a sane default.
 ```go
-img, err := saferimg.Decode(r)
+img, err := disintegration.Decode(r)
 ```
 
 
 #### Decoding with options
-Allows customisation of `MaxWidth`, `MaxHeight` and `MaxMemory`.
 ```go
-opts := saferimg.Opts{
-    // Don't decode images larger than 4096px in either dimension
+decoder := disintegration.NewDecoder(saferimg.Opts{
     MaxWidth: 4096,
     MaxHeight: 4096,
-    
-    // Don't decode images that will decode to more than 16mb
     MaxMemory: 16*1024*1024,
-}
+})
 
-decoder := saferimg.NewDecoder(opts)
-
-// Decode the image (or fail)
+// Decode image (or fail)
 img, err := decoder.Decode(r)
 ```
 
@@ -80,14 +103,8 @@ func processImage(r io.Reader) error {
     }
     // When done, release these bytes for others to use
     defer func () { sem.Release(requiredBytes) }
-
-	// Decode 
-    image, err := imaging.Decode(r)
-    if err != nil {
-        return err
-    }
-
-    // Do something with the image! 
+	
+    // Decode and do something with the image! 
 }
 ```
 
