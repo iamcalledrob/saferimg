@@ -1,4 +1,4 @@
-module saferimg
+module github.com/iamcalledrob/saferimg
 
 go 1.16
 
