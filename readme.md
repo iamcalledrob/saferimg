@@ -25,7 +25,7 @@ Memory usage is derived from the dimensions and the BPP of the color model.
 [Godoc](http://pkg.go.dev/github.com/iamcalledrob/saferimg)
 
 ### DIY
-Call exported methods directly, allowing you to use any decoder and take no dependency on
+Call exported methods individually, allowing you to use any decoder and take no dependency on
 disintegration/imaging.
 
 ```go
