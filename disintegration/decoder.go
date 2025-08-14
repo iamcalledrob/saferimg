@@ -4,9 +4,9 @@ package disintegration
 import (
 	"fmt"
 	"github.com/disintegration/imaging"
+	"github.com/iamcalledrob/saferimg"
 	"image"
 	"io"
-	"saferimg"
 )
 
 // Decoder decodes images using disintegration/imaging, but performs safety checks first.
