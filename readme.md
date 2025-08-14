@@ -30,7 +30,7 @@ disintegration/imaging.
 
 ```go
 // Get image config
-config, _, r, err := PeekConfig(r)
+config, _, r, err := saferimg.PeekConfig(r)
 if err != nil {
     return nil
 }
